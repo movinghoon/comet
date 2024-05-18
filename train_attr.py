@@ -111,7 +111,7 @@ def gen_image(latents, args, models, im_neg, im, num_steps, sample=False, create
     return im_neg, im_negs, im_grad, masks
 
 
-def train(models, optimizers, train_loader, epoch, args):
+def train(models, optimizers, train_loader, test_loader, epoch, args):
     # set training mode
     models = [model.train() for model in models]    # ?
     iters_per_epoch = len(train_loader)
@@ -192,6 +192,8 @@ def train(models, optimizers, train_loader, epoch, args):
                 save_dict['model_state_dict_{}'.format(i)] = models[i].state_dict()
                 save_dict['optimizer_state_dict_{}'.format(i)] = optimizers[i].state_dict()
             torch.save(save_dict, model_path)
+            
+            test(models, test_loader, epoch, args)
 
 
 def test(models, test_loader, epoch, args):
@@ -304,6 +306,9 @@ def test(models, test_loader, epoch, args):
         wandb.log(outs, commit=True)
         break
 
+    # back to train mode
+    [model.train() for model in models]
+
 def main():
     args = parse_args()
     
@@ -312,8 +317,8 @@ def main():
     args.ensemble = args.components
     args.tie_weight = True
     args.sample = True
-    args.recurrent_model = True
-    args.pos_embed = True
+    args.recurrent_model = False    # False for att
+    args.pos_embed = False          # False for att
     
     # log_dir
     args.exp_name = args.dataset + '_' + args.exp_name + '-' + datetime.now().strftime('%m-%d-%H')
@@ -346,7 +351,7 @@ def main():
                               pin_memory=True)
     test_loader = DataLoader(test_dset, 
                              num_workers=4,
-                             batch_size=args.batch_size,
+                             batch_size=8,
                              shuffle=False,
                              pin_memory=True)
     
@@ -354,10 +359,10 @@ def main():
     for epoch in range(args.epochs):
         
         # train
-        train(models, optimizers, train_loader, epoch, args)
+        train(models, optimizers, train_loader, test_loader, epoch, args)
         
         # test
-        test(models, test_loader, epoch, args)
+        # test(models, test_loader, epoch, args)
             
     # finish wandb
     wandb.finish()
