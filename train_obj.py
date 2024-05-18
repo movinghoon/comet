@@ -1,6 +1,6 @@
 import os
 import wandb
-import datetime
+from datetime import datetime
 import numpy as np
 import os.path as osp
 from easydict import EasyDict
@@ -48,11 +48,11 @@ def parse_args():
 
 def init_model(args, dataset):
     if args.img_size == 64:
-        model = LatentEBM(args, dataset).cuda()
+        model = LatentEBM#(args, dataset).cuda()
     else:
-        model = LatentEBM128(args, dataset).cuda()
-    models = [model for _ in range(args.ensemble)]
-    optimizers = [torch.optim.Adam(model.parameters(), lr=args.lr) for _ in range(args.ensemble)]
+        model = LatentEBM128#(args, dataset).cuda()
+    models = [model(args, dataset).cuda() for _ in range(args.ensemble)]
+    optimizers = [torch.optim.Adam(models[i].parameters(), lr=args.lr) for i in range(args.ensemble)]
     return models, optimizers
 
 
@@ -112,7 +112,7 @@ def train(models, optimizers, train_loader, epoch, args):
     loss_list, ml_loss_list, energy_pos_list, energy_neg_list = [], [], [], []
     
     # train
-    for i, batch in enumerate(tqdm(train_loader, total=len(train_loader))):
+    for idx, batch in enumerate(tqdm(train_loader, total=len(train_loader))):
         im = batch['image'].cuda()
         
         # extract latent
@@ -158,7 +158,7 @@ def train(models, optimizers, train_loader, epoch, args):
         energy_neg_list.append(energy_neg.mean().item())
         
         # logging
-        num_iters = iters_per_epoch * epoch + (i + 1)
+        num_iters = iters_per_epoch * epoch + (idx + 1)
         if num_iters % args.log_interval == 0:
             out_dict = {
                 'epoch': epoch,
